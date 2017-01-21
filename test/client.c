@@ -5,14 +5,22 @@
  * This software is released under the MIT License.
 */
 
-#include "common.h"
+#include "../lib/common.h"
+#include "../lib/masslog.h"
+#include <stdio.h>
 
 int main()
 {
   int i;
-  char* logq  = shmem_alloc_key(4096*2, "shm0.dat");
-  for(i=0; i<200000; i++){
-    add_log(LOG_USER, LOG_ERR, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", logq);
+  printf("started\n");
+  struct shmmng* logq  = shmem_get(4096*2, "../masslog.pid");
+
+  printf("shmem_alloc done\n");
+  for(i=0; i<200; i++){
+    char message[256];
+    sprintf(message, "log id = %d", i);
+    add_log(LOG_USER, LOG_ERR, message, logq);
+    printf("add log %d\n", i);
   }
   return 0;
 }

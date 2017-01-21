@@ -6,26 +6,12 @@
  * http://opensource.org/licenses/mit-license.php
  */
 
-#define MNGSIZE sizeof(struct shmmng)
-#define DATA2SHM(data) ((char*)data - MNGSIZE)
-#define SHM2DATA(shmem) ((char*)shmem + MNGSIZE)
-
-#define DEBUG_PRINT(...) do{                    \
-                                if(masslog_debug)               \
-                                  printf("DEBUG: " __VA_ARGS__);       \
-                                }while(0)
+#include <stdlib.h>
+#include <pthread.h>
 
 #define MAGIC_READ     0xdfdfdfdf
 #define MAGIC_WRITE    0xedededed
-
-extern int masslog_debug;
-
-struct shmmng{
-  int id;
-  int lock;                     /* TODO use mutex */
-  int pos;
-  int size;
-};
+#define MAGIC_END      0xabababab
 
 struct syslogmes{
   int facility;
@@ -35,10 +21,15 @@ struct syslogmes{
   char message[1];
 };
 
-void* shmem_alloc(int size, const char* keyfile);
-int shmem_free(void* data);
+struct shmmng{
+  int id;
+  size_t pos;
+  size_t size;
+  size_t distance;
+  struct syslogmes mes[1];
+};
 
-/* DEBUG */
-void hex_dmp(const void *buf, int size);
-int _free_lock(void* data);     /* TODO use mutex */
-int _get_lock(void* data);      /* TODO use mutex */
+
+struct shmmng* shmem_alloc(int size, const char* keyfile);
+struct shmmng* shmem_get(int size, const char* keyfile);
+int shmem_free(struct shmmng* shmem);

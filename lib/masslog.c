@@ -6,37 +6,45 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include "common.h"
+#include "masslog.h"
 
-static int get_pos(void* data, int size){
-  struct shmmng *mng = (struct shmmng*)DATA2SHM(data);
-  int pos;
+static inline struct syslogmes* get_pointer(struct shmmng* shmem, size_t offset){
+  return (struct syslogmes*)((char*) shmem->mes + offset);
+}
+
+static size_t get_pos(struct shmmng* shmem, size_t size){
+  size_t offset;
 
  retry:
-  pos = __atomic_fetch_add(&mng->pos, size, __ATOMIC_RELAXED);
+  offset = __atomic_fetch_add(&shmem->pos, size, __ATOMIC_RELAXED);
 
-  if (pos + size > mng->size){
-    if (_get_lock(data)){
-      mng->pos = 0;             /* should be atomic? */
+  if (offset + size > shmem->size){
+    if (!(offset + sizeof(struct syslogmes) > shmem->size)){
+      struct syslogmes* end = get_pointer(shmem, offset);
+      end->flag = MAGIC_END;
     }
+
+    shmem->pos = 0;             /* should be atomic? */
     goto retry;
   }
 
-  while(mng->lock);
+  __atomic_fetch_add(&shmem->distance, size, __ATOMIC_RELAXED);
 
-  return pos;
+  while(shmem->distance > shmem->size){
+    printf("%d, %d\n", shmem->distance, shmem->size);
+    //pause();
+  }; /* wait for read */
+
+  return offset;
 }
 
-int add_log(int facility, int priority, const char* message, char* logq){
-  int size = strlen(message) + sizeof(struct syslogmes);
-  struct shmmng* mng = (struct shmmng*)DATA2SHM(logq);
-  struct syslogmes * data;
-  int pos;
-
-  pos = get_pos(logq, size);
-
-  data = (struct syslogmes*)(logq + pos % mng->size);
+int add_log(int facility, int priority, const char* message, struct shmmng* shmem){
+  size_t size = strlen(message) + sizeof(struct syslogmes);
+  size_t offset = get_pos(shmem, size);
+  struct syslogmes * data = get_pointer(shmem, offset);
 
   /* set parameter */
   data->facility = facility;
@@ -44,9 +52,6 @@ int add_log(int facility, int priority, const char* message, char* logq){
   data->size = size;
   memcpy(data->message, message, strlen(message) + 1);
   data->flag = MAGIC_WRITE;
-  /* TODO set null at end */
-
-  DEBUG_PRINT("writepos: %d (%d)\n", mng->pos, mng->pos % mng->size);
 
   return 0;
 }

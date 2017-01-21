@@ -8,6 +8,4 @@
 
 #include <syslog.h>
 
-void masslog(int priority, const char *message, ...);
-void open_masslog();
-void close_masslog();
+int add_log(int facility, int priority, const char* message, struct shmmng* shmem);

@@ -10,53 +10,60 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "common.h"
+#include "../lib/common.h"
 
-int get_log(char* logq){
-  struct shmmng *mng = (struct shmmng*)DATA2SHM(logq);
-  struct syslogmes* readpos;
-  char* local = malloc(mng->size);
+void get_log(struct shmmng* mng){
+  struct syslogmes* readpos = mng->mes;
 
-  while(!mng->lock);
-  memcpy(local, logq, mng->size);
-  _free_lock(logq);
-
-  readpos = (struct syslogmes*)local;
-
-  do{
+  for(;;){
+    if(readpos->flag == MAGIC_END){
+      printf("pos: %p, ", readpos);
+      printf("logq: %p\n", mng);
+      readpos = (struct syslogmes*)mng->mes;
+    }
+    if(readpos->flag != MAGIC_WRITE){
+      continue;
+    }
     printf("Message:%s\n", readpos->message);
+    readpos->flag = MAGIC_READ;
+    __atomic_fetch_sub(&mng->distance, readpos->size, __ATOMIC_RELAXED);
     readpos = (struct syslogmes*)((char*)readpos + readpos->size);
-    if(readpos->flag != MAGIC_WRITE)
-      break;
-  }while((char*)readpos < local + mng->size);
 
-  return 0;
+    if ((char*)readpos > (char*)mng + mng->size - sizeof(struct syslogmes) ||
+        readpos->flag == MAGIC_END){
+      printf("pos: %p, ", readpos);
+      printf("logq: %p\n", mng);
+      readpos = (struct syslogmes*)mng->mes;
+    }
+  }
 }
 
-int main(){
+#define PIDFILE "../masslog.pid"
+
+/* pid file is  */
+void make_pidfile(){
   FILE *fp;
   char pid[16];
 
-  /* Make pid file */
-  if ((fp = fopen("/var/run/masslog.pid", "w")) == NULL) {
+  if ((fp = fopen(PIDFILE, "w")) == NULL) {
     perror("fopen pid");
     exit(EXIT_FAILURE);
   }
   sprintf(pid, "%d", getpid());
   fputs(pid, fp);
-
   fclose(fp);
+}
 
-  char* logq  = shmem_alloc(4096*2, "/var/run/masslog.pid");
-  shmem_free(logq);
+#define SHMEM_SIZE (4096 * 2)
 
-  logq  = shmem_alloc(4096*2, "/var/run/masslog.pid");
+int main(){
+  printf("masslogd started\n");
+  make_pidfile();
+
+  struct shmmng* logq  = shmem_alloc(SHMEM_SIZE, PIDFILE);
 
   /* Main loop */
-  for(;;){
-    get_log(logq);
-  }
-
+  get_log(logq);
   shmem_free(logq);
 
   return 0;
