@@ -1,6 +1,4 @@
 /*
- * masslog client library
- *
  * Copyright (c) 2014 juntaki <me@juntaki.com>
  * This software is released under the MIT License.
  * http://opensource.org/licenses/mit-license.php
@@ -11,7 +9,7 @@
 #include <string.h>
 #include "common.h"
 
-int get_pos(void* data, int size){
+static int get_pos(void* data, int size){
   struct shmmng *mng = (struct shmmng*)DATA2SHM(data);
   int pos;
 
@@ -52,3 +50,4 @@ int add_log(int facility, int priority, const char* message, char* logq){
 
   return 0;
 }
+

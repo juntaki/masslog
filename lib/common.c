@@ -52,7 +52,7 @@ void* shmem_alloc(int size, const char* keyfile){
   key_t   key;
   int id;
   void* shmem;
-
+  
   if ((key = ftok(keyfile, 'R')) == -1) {
     perror("ftok");
     return NULL;
