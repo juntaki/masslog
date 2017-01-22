@@ -16,7 +16,7 @@ int main()
   struct shmmng* logq  = shmem_get();
 
   printf("shmem_alloc done\n");
-  for(i=0; i<200; i++){
+  for(i=0; i<20000; i++){
     char message[256];
     sprintf(message, "log id = %d", i);
     add_log(LOG_USER, LOG_ERR, message, logq);
