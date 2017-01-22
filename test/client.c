@@ -13,7 +13,7 @@ int main()
 {
   int i;
   printf("started\n");
-  struct shmmng* logq  = shmem_get(4096*2, "../masslog.pid");
+  struct shmmng* logq  = shmem_get();
 
   printf("shmem_alloc done\n");
   for(i=0; i<200; i++){

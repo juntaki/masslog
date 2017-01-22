@@ -13,23 +13,24 @@
 #define MAGIC_WRITE    0xedededed
 #define MAGIC_END      0xabababab
 
+#define MESSAGE_MAX 1024
 struct syslogmes{
   int facility;
   int priority;
   int size;
   unsigned int flag;
-  char message[1];
+  char message[MESSAGE_MAX];
 };
 
 struct shmmng{
   int id;
-  size_t pos;
   size_t size;
-  size_t distance;
+  unsigned long long reader_offset;
+  unsigned long long first_writer_offset;
+  unsigned long long last_writer_offset;
   struct syslogmes mes[1];
 };
 
-
-struct shmmng* shmem_alloc(int size, const char* keyfile);
-struct shmmng* shmem_get(int size, const char* keyfile);
-int shmem_free(struct shmmng* shmem);
+struct shmmng* shmem_alloc();
+struct shmmng* shmem_get();
+int shmem_free();

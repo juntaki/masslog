@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -fPIC -Wall -Wextra -O2 -g
-LDFLAGS = -shared
+LDFLAGS = -shared -lrt
 TARGET = libmasslog.so
 
 SOURCES = $(shell echo *.c)

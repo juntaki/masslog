@@ -9,3 +9,4 @@
 #include <syslog.h>
 
 int add_log(int facility, int priority, const char* message, struct shmmng* shmem);
+void get_log(struct shmmng* mng);

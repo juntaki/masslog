@@ -17,72 +17,42 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "common.h"
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
 
-struct shmmng* shmem_get(int size, const char* keyfile){
-  key_t   key;
-  int id;
+#define SHM_FILE "/masslog.shm"
+#define SHM_SIZE 10
+struct shmmng* shmem_get(){
+  int alloc_size = SHM_SIZE * sizeof(struct syslogmes) + sizeof(struct shmmng);
+  int fd = shm_open(SHM_FILE, O_RDWR, S_IRUSR | S_IWUSR);
+
   struct shmmng* shmem;
-
-  if ((key = ftok(keyfile, 'R')) == -1) {
-    perror("ftok");
-    return NULL;
-  }
-
-  if ((id = shmget(key, size, 0666)) < 0) {
-    perror("shmget");
-    return NULL;
-  }
-
-  shmem = (struct shmmng *)shmat(id, (void *)0, 0);
-  if (shmem == (struct shmmng *)-1) {
-    perror("shmat");
-    return NULL;
-  }
+  shmem = (struct shmmng *)mmap(NULL, alloc_size, PROT_WRITE|PROT_READ, MAP_SHARED,fd, 0 );
 
   return shmem;
 }
 
-struct shmmng* shmem_alloc(int size, const char* keyfile){
-  key_t   key;
-  int id;
+struct shmmng* shmem_alloc(){
+  shm_unlink(SHM_FILE);
+  int alloc_size = SHM_SIZE * sizeof(struct syslogmes) + sizeof(struct shmmng);
+  int fd = shm_open(SHM_FILE, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+  ftruncate(fd, alloc_size);
+
   struct shmmng* shmem;
+  shmem = (struct shmmng *)mmap(NULL, alloc_size, PROT_WRITE|PROT_READ, MAP_SHARED,fd, 0 );
 
-  if ((key = ftok(keyfile, 'R')) == -1) {
-    perror("ftok");
-    return NULL;
-  }
+  shmem->reader_offset = 0;
+  shmem->first_writer_offset = 0;
+  shmem->last_writer_offset = 0;
+  shmem->size = SHM_SIZE;
 
-  if ((id = shmget(key, size, IPC_CREAT|0666)) < 0) {
-    perror("shmget");
-    return NULL;
-  }
-
-  shmem = (struct shmmng *)shmat(id, (void *)0, 0);
-  if (shmem == (struct shmmng *)-1) {
-    perror("shmat");
-    return NULL;
-  }
-
-  shmem->id = id;
-  shmem->size = size;
-  shmem->distance = 0;
-  shmem->pos = 0;
-
-  memset(shmem->mes, 0, size - sizeof(struct shmmng));
+  memset(shmem->mes, 0, alloc_size - sizeof(struct shmmng));
 
   return shmem;
 }
 
-int shmem_free(struct shmmng* shmem){
-  /* dettach the segment to data space */
-  if (shmdt(shmem) == -1){
-    perror("shmdt");
-    return 1;
-  }
-  /* Destroy the segment */
-  if (shmctl(shmem->id, IPC_RMID, 0) == -1){
-    perror("shmctl");
-    return 1;
-  }
+int shmem_free(){
+  shm_unlink(SHM_FILE);
   return 0;
 }
