@@ -9,9 +9,11 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#define MAGIC_READ     0xdfdfdfdf
-#define MAGIC_WRITE    0xedededed
-#define MAGIC_END      0xabababab
+#define STATUS_INIT      0
+#define STATUS_WRITING   (1 << 0)
+#define STATUS_READING   (1 << 1)
+#define STATUS_OK        (1 << 2)
+#define STATUS_INVALID   (1 << 3)
 
 #define MESSAGE_MAX 1024
 struct syslogmes{
